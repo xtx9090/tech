@@ -29,8 +29,7 @@ const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({ title, description 
         }
       });
 
-      const candidate = response.candidates?.[0];
-      const parts = candidate?.content?.parts;
+      const parts = response.candidates?.[0]?.content?.parts;
       if (parts) {
         for (const part of parts) {
           if (part.inlineData) {
@@ -39,8 +38,11 @@ const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({ title, description 
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Image generation failed", error);
+      if (error.message?.includes("Requested entity was not found")) {
+        window.dispatchEvent(new CustomEvent('API_KEY_ERROR', { detail: { message: error.message } }));
+      }
     } finally {
       setIsGenerating(false);
     }

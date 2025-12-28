@@ -1,17 +1,21 @@
 
 import { defineConfig } from 'vite';
-// @ts-ignore
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  // @ts-ignore
   plugins: [react()],
   define: {
+    // 确保 process.env.API_KEY 在构建时被替换为真实值
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
     target: 'esnext',
-    outDir: 'dist'
+    outDir: 'dist',
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
   },
   server: {
     port: 3000

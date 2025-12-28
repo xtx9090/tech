@@ -12,6 +12,7 @@ const SiliconFabricator: React.FC = () => {
     setIsFabing(true);
     setSpecSheet(null);
     try {
+      // 每次调用前重新实例化，确保使用最新的 API Key
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -20,7 +21,11 @@ const SiliconFabricator: React.FC = () => {
         格式要求：类似工业规格书的排版。`,
       });
       setSpecSheet(response.text || '晶圆刻蚀失败。');
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Fabrication failed:", error);
+      if (error.message?.includes("Requested entity was not found")) {
+        window.dispatchEvent(new CustomEvent('API_KEY_ERROR', { detail: { message: error.message } }));
+      }
       setSpecSheet('FAB_ERROR: 光刻机离线。请检查核心授权。');
     } finally {
       setIsFabing(false);

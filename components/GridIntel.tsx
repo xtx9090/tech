@@ -29,14 +29,17 @@ const GridIntel: React.FC = () => {
         .filter(c => c.web && c.web.title && c.web.uri)
         .slice(0, 3)
         .map(c => ({
-          title: c.web!.title || "未知情报",
+          title: c.web?.title || "未知情报",
           snippet: "点击查看详细情报流...",
-          url: c.web!.uri || "#"
+          url: c.web?.uri || "#"
         }));
       
       setIntel(formatted.length > 0 ? formatted : [{ title: "FEED_IDLE", snippet: "当前暂无高优先级情报更新。", url: "#" }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Intel fetch failed", error);
+      if (error.message?.includes("Requested entity was not found")) {
+        window.dispatchEvent(new CustomEvent('API_KEY_ERROR', { detail: { message: error.message } }));
+      }
       setIntel([{ title: "UPLINK_FAILURE", snippet: "情报卫星连接中断。", url: "#" }]);
     } finally {
       setIsLoading(false);

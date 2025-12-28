@@ -13,7 +13,6 @@ import SiliconFabricator from './components/SiliconFabricator';
 import { POSTS } from './constants';
 import { Post } from './types';
 
-// 定义全局类型以解决 TypeScript 编译错误
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -23,6 +22,16 @@ declare global {
     aistudio?: AIStudio;
   }
 }
+
+// 针对 Vite 的 process.env 注入进行安全访问封装
+const getApiKey = () => {
+  try {
+    // Vite 在编译时会替换 process.env.API_KEY
+    return (process.env as any).API_KEY || "";
+  } catch (e) {
+    return "";
+  }
+};
 
 type View = 'list' | 'post' | 'about';
 
@@ -46,17 +55,16 @@ const App: React.FC = () => {
           console.error("Failed to check API key status", e);
         }
       } else {
-        // @ts-ignore
-        const key = typeof process !== 'undefined' && process.env ? process.env.API_KEY : '';
+        const key = getApiKey();
         setIsKeySelected(!!key);
       }
     };
     checkApiKey();
 
-    // 监听全局 API 错误事件，用于处理指令要求的 Key 重置逻辑
     const handleApiKeyError = (e: Event) => {
       const errorMsg = (e as CustomEvent).detail?.message || '';
       if (errorMsg.includes("Requested entity was not found")) {
+        console.warn("Detected invalid project entity, resetting API key state.");
         setIsKeySelected(false);
         if (window.aistudio) {
           window.aistudio.openSelectKey().then(() => setIsKeySelected(true));
@@ -64,8 +72,8 @@ const App: React.FC = () => {
       }
     };
 
-    window.addEventListener('API_KEY_ERROR', handleApiKeyError);
-    return () => window.removeEventListener('API_KEY_ERROR', handleApiKeyError);
+    window.addEventListener('API_KEY_ERROR', handleApiKeyError as EventListener);
+    return () => window.removeEventListener('API_KEY_ERROR', handleApiKeyError as EventListener);
   }, []);
 
   const handleConnectKey = async () => {

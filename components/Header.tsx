@@ -36,7 +36,7 @@ const Header: React.FC<HeaderProps> = ({ onHome, onAbout }) => {
     setAiAnalysis('');
 
     try {
-      // Create a new instance directly before use to ensure the latest API key is used
+      // 动态获取 API Key 并实例化
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -49,7 +49,11 @@ const Header: React.FC<HeaderProps> = ({ onHome, onAbout }) => {
       setAiAnalysis(response.text || '分析完成。');
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       setGroundingResults(chunks);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Search failed:", error);
+      if (error.message?.includes("Requested entity was not found")) {
+        window.dispatchEvent(new CustomEvent('API_KEY_ERROR', { detail: { message: error.message } }));
+      }
       setAiAnalysis('搜索连接失败，请检查 API 配置。');
     } finally {
       setIsSearching(false);
