@@ -13,25 +13,8 @@ import SiliconFabricator from './components/SiliconFabricator';
 import { POSTS } from './constants';
 import { Post } from './types';
 
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
-
-// 针对 Vite 的 process.env 注入进行安全访问封装
-const getApiKey = () => {
-  try {
-    // Vite 在编译时会替换 process.env.API_KEY
-    return (process.env as any).API_KEY || "";
-  } catch (e) {
-    return "";
-  }
-};
+// Access the API_KEY provided by the environment
+const ENV_API_KEY = process.env.API_KEY || '';
 
 type View = 'list' | 'post' | 'about';
 
@@ -47,27 +30,36 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkApiKey = async () => {
-      if (window.aistudio) {
+      // Check if the environment is AI Studio and if a key is already selected
+      // Using type assertion to bypass conflict with environment-provided declarations
+      const aistudio = (window as any).aistudio;
+      if (aistudio) {
         try {
-          const hasKey = await window.aistudio.hasSelectedApiKey();
+          const hasKey = await aistudio.hasSelectedApiKey();
           setIsKeySelected(hasKey);
         } catch (e) {
-          console.error("Failed to check API key status", e);
+          console.error("Failed to check API key selection status:", e);
         }
       } else {
-        const key = getApiKey();
-        setIsKeySelected(!!key);
+        // In standard environments, we rely on the injected ENV_API_KEY
+        setIsKeySelected(!!ENV_API_KEY);
       }
     };
     checkApiKey();
 
+    // Listen for custom API error events dispatched by components
     const handleApiKeyError = (e: Event) => {
       const errorMsg = (e as CustomEvent).detail?.message || '';
       if (errorMsg.includes("Requested entity was not found")) {
-        console.warn("Detected invalid project entity, resetting API key state.");
+        console.warn("API Key validation failed. Resetting key selection state.");
         setIsKeySelected(false);
-        if (window.aistudio) {
-          window.aistudio.openSelectKey().then(() => setIsKeySelected(true));
+        // If in AI Studio, prompt for re-selection
+        const aistudio = (window as any).aistudio;
+        if (aistudio) {
+          aistudio.openSelectKey().then(() => {
+            // Rule: Assume selection was successful to mitigate race conditions
+            setIsKeySelected(true);
+          });
         }
       }
     };
@@ -77,12 +69,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleConnectKey = async () => {
-    if (window.aistudio) {
+    const aistudio = (window as any).aistudio;
+    if (aistudio) {
       try {
-        await window.aistudio.openSelectKey();
+        await aistudio.openSelectKey();
+        // Rule: Assume selection was successful to mitigate race conditions
         setIsKeySelected(true);
       } catch (e) {
-        console.error("Failed to open API key selection", e);
+        console.error("Failed to open key selection dialog:", e);
       }
     }
   };
@@ -125,26 +119,27 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen relative z-10 ${isDarkMode ? 'dark bg-[#050b15] text-zinc-100' : 'bg-gray-50 text-gray-800'}`}>
-      {!isKeySelected && window.aistudio && (
+      {/* API Key Selection Overlay for AI Studio Environments */}
+      {!isKeySelected && (window as any).aistudio && (
         <div className="fixed inset-0 z-[2000] bg-[#050b15]/95 backdrop-blur-3xl flex items-center justify-center p-6 text-center">
           <div className="max-w-md space-y-8 hud-border p-10 bg-black/60 shadow-[0_0_100px_rgba(0,243,255,0.2)]">
             <div className="w-20 h-20 bg-cyan-950 rounded-full flex items-center justify-center mx-auto border border-cyan-500/30 animate-pulse">
               <i className="fas fa-key text-cyan-500 text-3xl"></i>
             </div>
             <div className="space-y-4">
-              <h2 className="text-2xl font-cyber font-bold text-white tracking-tighter">API_ACCESS_REQUIRED</h2>
+              <h2 className="text-2xl font-cyber font-bold text-white tracking-tighter">ACCESS_DENIED</h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                为了体验全功能的视频生成与 AGI 模拟器，请连接您的 Google AI Studio 结算项目 API Key。
+                部分核心模组（如 Veo 视频生成）需要绑定您的 Google AI Studio 结算账户。
               </p>
             </div>
             <button 
               onClick={handleConnectKey}
               className="w-full py-4 bg-cyan-500 text-black font-cyber font-bold text-xs uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(0,243,255,0.4)]"
             >
-              [ CONNECT_NEURAL_LINK ]
+              [ BIND_API_KEY ]
             </button>
             <p className="text-[10px] text-zinc-600">
-              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-500 underline">查看计费文档</a>
+              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-500 underline">查看结算文档</a>
             </p>
           </div>
         </div>
@@ -164,13 +159,13 @@ const App: React.FC = () => {
               <div className="hud-border bg-black/40 p-4 border-l-4 border-cyan-500 font-mono text-[10px] text-cyan-400 mb-8 animate-fade-in">
                 <div className="flex justify-between items-center mb-2">
                   <span className="opacity-50 tracking-widest uppercase">/ CONNECTION_ESTABLISHED /</span>
-                  <span className="text-zinc-600">IP: {Math.floor(Math.random()*255)}.XXX.XXX.1</span>
+                  <span className="text-zinc-600">NODE_ID: {Math.floor(Math.random()*1000000).toString(16).toUpperCase()}</span>
                 </div>
                 <div className="space-y-1">
-                  <p>{">"} LOADING_CORE_DATABASE... [SUCCESS]</p>
-                  <p>{">"} SCANNING_NEURAL_TOPOLOGY... [OK]</p>
-                  <p>{">"} WELCOME_OPERATOR: GUEST_ID_{Math.floor(Math.random()*10000)}</p>
-                  <p className="animate-pulse">{">"} READY_FOR_DEEP_DIVE_...</p>
+                  <p>{">"} LOADING_LATEST_AI_INTEL... [OK]</p>
+                  <p>{">"} SYNCHRONIZING_WORLD_MODELS... [OK]</p>
+                  <p>{">"} OPERATOR_AUTHORIZATION: GRANTED</p>
+                  <p className="animate-pulse">{">"} READY_FOR_NEURAL_EXPLORATION_...</p>
                 </div>
               </div>
 
@@ -179,7 +174,7 @@ const App: React.FC = () => {
               
               <div className="border-b border-cyan-900/20 pb-4 mb-8 flex justify-between items-end">
                 <h2 className="font-cyber text-lg text-white flex items-center gap-3">
-                  <i className="fas fa-stream text-cyan-500"></i> PRIMARY_DATA_FEED
+                  <i className="fas fa-rss text-cyan-500"></i> LATEST_CHRONICLES
                 </h2>
               </div>
 
