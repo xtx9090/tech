@@ -1,0 +1,9 @@
+{
+  "name": "智芯视界 (IntelliCore Horizon)",
+  "description": "基于 Gemini 3 的深度科技观测站，探索 AGI 与硅基文明。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
